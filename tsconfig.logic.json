@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": []
+  },
+  "include": [
+    "src/core/types.ts",
+    "src/core/dictionary.ts",
+    "src/games/chess/logic.ts",
+    "src/games/pirate-go/logic.ts",
+    "src/games/scrabble/logic.ts",
+    "src/games/mahjong/logic.ts",
+    "src/games/ludo/types.ts",
+    "src/games/ludo/logic.ts",
+    "src/games/ludo/board-map.ts",
+    "src/games/ludo/bot.ts",
+    "src/games/mahjong-solitaire/types.ts",
+    "src/games/mahjong-solitaire/layout.ts",
+    "src/games/mahjong-solitaire/logic.ts",
+    "src/games/uno/types.ts",
+    "src/games/uno/deck.ts",
+    "src/games/vita-mahjong/types.ts",
+    "src/games/vita-mahjong/layout.ts",
+    "src/games/vita-mahjong/logic.ts"
+  ]
+}

@@ -1,0 +1,1 @@
+export type MineState={playerIds:string[];turn:number;rows:number;cols:number;mineCount:number;mines:number[];revealed:number[];flags:number[];counts:number[];started:boolean;over:boolean;won:boolean;log:string[]};

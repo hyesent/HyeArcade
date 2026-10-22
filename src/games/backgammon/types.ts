@@ -1,0 +1,1 @@
+export type BGState={playerIds:string[];turn:number;points:number[][];bar:number[];off:number[];dice:number[];rolled:boolean;cube:number;cubeOwner:number|null;doubleOfferedBy:number|null;cubeDroppedWinner:number|null;log:string[]};

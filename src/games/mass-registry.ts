@@ -1,0 +1,1 @@
+export { monopoly } from './monopoly'; export { monopolyDeal } from './monopoly-deal'; export { scramble } from './scramble'; export { treasureHunt } from './treasure-hunt'; export { scrabble } from './scrabble'; export { mahjong } from './mahjong'; export { pirateGo } from './pirate-go';

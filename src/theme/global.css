@@ -1,0 +1,230 @@
+:root {
+  color-scheme: dark;
+  --hye-safe-top: env(safe-area-inset-top, 0px);
+  --hye-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hye-safe-left: env(safe-area-inset-left, 0px);
+  --hye-safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #14121c;
+  color: #f5f2ea;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#root {
+  padding-top: var(--hye-safe-top);
+  padding-bottom: var(--hye-safe-bottom);
+  padding-left: var(--hye-safe-left);
+  padding-right: var(--hye-safe-right);
+}
+
+@keyframes hye-fade-in {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+@keyframes hye-rise-in {
+  from { opacity: 0; transform: translateY(12px) }
+  to { opacity: 1; transform: translateY(0) }
+}
+@keyframes hye-pop {
+  0% { transform: scale(0.9); opacity: 0 }
+  60% { transform: scale(1.03); opacity: 1 }
+  100% { transform: scale(1) }
+}
+@keyframes hye-glow {
+  0%, 100% { opacity: 0.6 }
+  50% { opacity: 1 }
+}
+
+/* Monopoly turn actions use a centered modal on both mobile and desktop. */
+.hye-monopoly-actions { display:none; }
+.hye-monopoly-actions.is-open { display:flex; }
+
+/* Mobile-first game shell guardrails: prevent boards, controls and dialogs from clipping. */
+html { -webkit-text-size-adjust: 100%; }
+button, select, input, textarea { touch-action: manipulation; }
+button { min-height: 40px; }
+input, select, textarea { max-width: 100%; }
+svg { max-width: 100%; }
+@media (max-width: 640px) {
+  #root { min-height: 100dvh; height: 100dvh; overflow: hidden; }
+  .hye-monopoly-actions { display:none; }
+  .hye-monopoly-actions.is-open { display:flex; }
+  .hye-monopoly-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; position: fixed; z-index: 61; left: 12px; right: 12px; bottom: calc(8px + var(--hye-safe-bottom)); min-height: 48px; border-radius: 14px; background: #d9b45b; color: #211b12; font-weight: 900; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+  .hye-monopoly-actions.is-open + .hye-monopoly-toggle { display:none !important; }
+  .hye-monopoly-actions .hye-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .hye-activity-overlay { padding: 14px !important; align-items: center !important; justify-content:center !important; }
+  .hye-activity-panel { width: min(560px, 100%) !important; max-height: 84dvh !important; border-radius: 20px !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+@media (max-width: 640px) {
+  .hye-cabinet { min-height: 0 !important; height: 100dvh !important; padding: max(4px, env(safe-area-inset-top)) 5px max(54px, env(safe-area-inset-bottom)) !important; gap: 5px !important; overflow: hidden; }
+  .hye-bezel { width: 100% !important; max-width: 100% !important; min-height: 0 !important; flex: 1 1 0 !important; padding: 2px !important; border-radius: 12px !important; aspect-ratio: auto !important; }
+  .hye-stage { min-height: 0 !important; overflow: auto !important; overscroll-behavior: contain; }
+  .hye-control-deck { display: flex !important; flex-direction: column; align-items: stretch !important; gap: 5px !important; padding: 5px 0 2px !important; min-width: 0; }
+  .hye-control-deck > * { max-width: 100%; min-width: 0; }
+  .hye-control-deck > div:first-child { justify-content: center; flex-wrap: nowrap; }
+  .hye-control-deck button, .hye-control-deck select, .hye-control-deck input { min-height: 44px; }
+  .hye-control-deck .hye-monopoly-toggle { display: none !important; }
+  .hye-cabinet header { flex-shrink: 0; }
+}
+@media (min-width: 641px) { .hye-monopoly-toggle { display: none !important; } }
+
+
+/* Final visual consistency pass: accessible focus, glass surfaces and mobile-safe controls. */
+:root { color-scheme: dark; }
+button, [role="button"], select, input, textarea { font: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgba(232,185,92,.95);
+  outline-offset: 3px;
+}
+button:disabled { cursor: not-allowed !important; filter: saturate(.55); }
+::selection { background: rgba(232,185,92,.28); color: #fffaf0; }
+* { scrollbar-width: thin; scrollbar-color: rgba(232,185,92,.35) rgba(255,255,255,.035); }
+@media (hover:hover) {
+  button:not(:disabled):hover { filter: brightness(1.06); }
+}
+@media (max-width: 420px) {
+  .hye-game-action-pill { right: 8px !important; top: max(6px,env(safe-area-inset-top)) !important; }
+  .hye-game-action-pill button { width: 36px !important; height: 36px !important; }
+}
+
+/* Android LAN-host viewport: keep the home catalogue vertically scrollable. */
+html, body { min-height: 100%; }
+body { overscroll-behavior-y: auto; }
+@media (max-width: 640px) {
+  #root { height: 100dvh; min-height: 100dvh; overflow: auto; }
+  .hye-cabinet { height: auto !important; min-height: 100dvh !important; overflow: visible !important; }
+  .hye-cabinet:has(.hye-stage) { height: 100dvh !important; min-height: 0 !important; overflow: hidden !important; }
+  .hye-stage { min-height: 0; overflow-y: auto !important; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+}
+
+
+/* Game viewport overflow: allow every game board and its controls to be reached
+   on short/narrow screens, including boards wider than the phone viewport. */
+.hye-stage {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-gutter: stable;
+}
+.hye-stage > div:last-child {
+  min-width: 100%;
+  min-height: 100%;
+}
+@media (max-width: 640px) {
+  html, body, #root { max-width: 100%; }
+  #root { overflow: auto !important; }
+  .hye-cabinet:has(.hye-stage) {
+    width: 100%;
+    max-width: 100%;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+  .hye-bezel {
+    flex: 1 0 60dvh !important;
+    min-height: 60dvh !important;
+    overflow: hidden !important;
+  }
+  .hye-stage {
+    overflow: auto !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    touch-action: pan-x pan-y;
+  }
+  .hye-game-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .hye-stage > div:last-child {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+}
+
+/* Shared, scroll-friendly scoreboard and match-event panels. */
+.hye-game-overview { display:grid; gap:12px; width:100%; max-width:1120px; margin:0 auto; padding:0 clamp(8px,2vw,18px) 14px; min-width:0; }
+.hye-scoreboard, .hye-event-feed { display:grid; gap:10px; min-width:0; padding:14px; border:1px solid rgba(255,255,255,.11); border-radius:18px; background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.018)),rgba(15,18,27,.82); box-shadow:0 12px 30px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.035); }
+.hye-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; font-weight:1000; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.76); }
+.hye-score-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:9px; }
+.hye-score-card { min-width:0; display:grid; gap:9px; padding:12px; border:1px solid rgba(255,255,255,.09); border-radius:15px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018)); }
+.hye-score-card.is-active { border-color:rgba(232,185,92,.65); box-shadow:inset 0 0 0 1px rgba(232,185,92,.15),0 8px 20px rgba(0,0,0,.13); background:linear-gradient(135deg,rgba(232,185,92,.13),rgba(255,255,255,.025)); }
+.hye-score-card-top { display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+.hye-score-card-top strong { overflow-wrap:anywhere; }
+.hye-score-seat, .hye-stat-pill, .hye-event-number { display:inline-grid; place-items:center; flex-shrink:0; border-radius:9px; font-size:10px; font-weight:1000; }
+.hye-score-seat { width:25px; height:25px; color:#211a0b; background:linear-gradient(135deg,#fff0a6,#e8b95c); }
+.hye-stat-pill { padding:5px 8px; color:rgba(255,255,255,.72); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); letter-spacing:.5px; }
+.hye-stat-pill.active { margin-left:auto; color:#f5d987; border-color:rgba(232,185,92,.3); background:rgba(232,185,92,.1); }
+.hye-score-metrics { display:flex; gap:7px; flex-wrap:wrap; }
+.hye-score-metrics span { padding:6px 9px; border-radius:9px; background:rgba(0,0,0,.18); color:rgba(255,255,255,.82); font-size:12px; font-weight:800; }
+.hye-event-note { padding:9px 11px; border-radius:11px; color:rgba(255,255,255,.7); background:rgba(255,255,255,.035); font-size:12px; line-height:1.5; }
+.hye-event-list { display:grid; gap:7px; }
+.hye-event-row { display:grid; grid-template-columns:27px minmax(0,1fr); align-items:start; gap:9px; padding:9px 10px; border-radius:11px; border:1px solid rgba(255,255,255,.055); background:rgba(255,255,255,.035); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.hye-event-number { width:24px; height:24px; color:#f5d987; background:rgba(232,185,92,.12); }
+.hye-monopoly-actions.is-open { animation:hye-fade-in 140ms ease-out; }
+.hye-monopoly-actions.is-open > section { animation:hye-rise-in 180ms cubic-bezier(.22,1,.36,1); }
+.hye-monopoly-main-controls { flex-shrink:0; }
+@media (max-width: 640px) {
+  /* The whole match can scroll vertically so boards keep their size and stats/events sit below them. */
+  #root { min-height:100dvh !important; height:auto !important; max-height:none !important; overflow-x:hidden !important; overflow-y:auto !important; }
+  .hye-cabinet { min-height:100dvh !important; height:auto !important; max-height:none !important; overflow:visible !important; padding:max(5px,env(safe-area-inset-top)) 6px max(18px,env(safe-area-inset-bottom)) !important; gap:8px !important; }
+  .hye-bezel { flex:0 0 auto !important; height:auto !important; min-height:clamp(320px,54dvh,620px) !important; overflow:visible !important; aspect-ratio:auto !important; }
+  .hye-stage { min-height:clamp(300px,52dvh,600px) !important; height:auto !important; overflow:visible !important; }
+  .hye-stage > div:last-child { height:auto !important; min-height:100% !important; }
+  .hye-control-deck { flex-shrink:0 !important; }
+  .hye-game-overview { padding:0 5px 14px; }
+  .hye-scoreboard, .hye-event-feed { padding:11px; border-radius:15px; }
+  .hye-score-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr)); }
+  .hye-monopoly-main-controls { display:grid !important; grid-template-columns:1.2fr 1fr; }
+  .hye-monopoly-main-controls button { width:100%; }
+}

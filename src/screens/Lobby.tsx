@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { BotDifficulty, GameDefinition, Player } from '../core/types';
-import { createLanClient, detectLanBaseUrl, type LanRoomInfo } from '../core/lan';
+import { createLanClient, detectLanBaseUrl, type LanRoomInfo, type LanClient } from '../core/lan';
+import { createOnlineClient, ONLINE_API_BASE } from '../core/online';
 import { tokens } from '../theme/tokens';
 import { play } from '../theme/sounds';
 import { Icon } from '../components/Icon';
@@ -16,11 +17,14 @@ interface LobbyProps {
   onStart: (players: Player[], boardId?: string, lanRoom?: LanRoomInfo, lanClient?: ReturnType<typeof createLanClient>) => void;
   onBack: () => void;
   onSwitchGame: (gameId: string) => void;
+  networkMode?: 'local' | 'lan' | 'online';
+  initialRoomCode?: string;
+  autoCreateRoom?: boolean;
 }
 
 const SEAT_COLORS = ['#FF9A3C', '#5FA8E8', '#4FD1A0', '#FF5C7A', '#8B7FE8', '#E8B95C'];
 
-export function Lobby({ game, onStart, onBack, onSwitchGame }: LobbyProps) {
+export function Lobby({ game, onStart, onBack, onSwitchGame, networkMode = 'local', initialRoomCode, autoCreateRoom = false }: LobbyProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [profilePlayer, setProfilePlayer] = useState<Player | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -32,17 +36,40 @@ export function Lobby({ game, onStart, onBack, onSwitchGame }: LobbyProps) {
     return [{ id: 'p1', profileId: profile.id, name: profile.name, kind: 'human', seat: 0, connected: true }];
   });
   const [boardId, setBoardId] = useState<string | undefined>(game.boards?.[0]?.id);
-  const [lanOpen, setLanOpen] = useState(false);
-  const [lanMode, setLanMode] = useState<'choose' | 'host' | 'join'>('choose');
+  const [lanOpen, setLanOpen] = useState(networkMode === 'lan' || networkMode === 'online');
+  const [lanMode, setLanMode] = useState<'choose' | 'host' | 'join'>(autoCreateRoom ? 'host' : initialRoomCode ? 'join' : 'choose');
   const [lanHost, setLanHost] = useState(false);
   const [lanName, setLanName] = useState(() => getActiveProfile().name);
   const [lanCode, setLanCode] = useState('');
-  const [lanUrl, setLanUrl] = useState(detectLanBaseUrl());
+  const [lanUrl, setLanUrl] = useState(networkMode === 'online' ? ONLINE_API_BASE : detectLanBaseUrl());
   const [lanRoom, setLanRoom] = useState<LanRoomInfo | null>(null);
   const [lanBusy, setLanBusy] = useState(false);
   const [lanNotice, setLanNotice] = useState('');
-  const lanClient = useState(() => createLanClient())[0];
+  const lanClient = useState<LanClient>(() => networkMode === 'online' ? createOnlineClient() : createLanClient())[0];
+  const autoConnectPromise = useRef<Promise<LanRoomInfo> | null>(null);
   useEffect(() => { setBoardId(game.boards?.[0]?.id); }, [game.id]);
+  useEffect(() => {
+    if (networkMode !== 'online' || (!autoCreateRoom && !initialRoomCode)) return;
+    let cancelled = false;
+    if (!autoConnectPromise.current) {
+      const profile = getActiveProfile();
+      const player: Player = { id: 'pending', profileId: profile.id, publicProfile: publicProfileFor(profile), name: lanName.trim() || profile.name, kind: 'human', seat: initialRoomCode ? 1 : 0, connected: true, ready: false };
+      autoConnectPromise.current = initialRoomCode
+        ? lanClient.joinRoom(ONLINE_API_BASE, game.id, initialRoomCode, player)
+        : lanClient.createRoom(ONLINE_API_BASE, game.id, player);
+    }
+    setLanBusy(true);
+    autoConnectPromise.current.then(room => {
+      if (cancelled) return;
+      setLanRoom(room); setLanHost(room.host); setPlayers(room.session.players); setLanCode(room.code);
+    }).catch(error => {
+      if (!cancelled) setLanNotice(error instanceof Error ? error.message : 'Could not connect to the online room.');
+    }).finally(() => { if (!cancelled) setLanBusy(false); });
+    return () => { cancelled = true; };
+  // Cache the initial connection promise so React StrictMode cannot create two rooms.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkMode, autoCreateRoom, initialRoomCode, lanClient]);
+
   useEffect(() => lanClient.onMessage(m => { if(m.type==='host'){ setLanHost(m.player===lanClient.clientId); setLanRoom(prev=>prev?{...prev,host:m.player===lanClient.clientId}:prev); } if(m.type==='leave'){const departed=players.find(p=>p.id===m.player);setLanNotice(`${departed?.name ?? m.name ?? 'A player'} disconnected.`);} if(m.type==='session'){ setLanRoom(prev => prev ? {...prev, session:m.session, host:lanClient.isHost()} : prev); if(m.session.gameId!==game.id){onSwitchGame(m.session.gameId);} setPlayers(prev => { const bots = lanClient.isHost() && m.session.status === 'lobby' ? prev.filter(p => p.kind === 'bot') : []; const seen = new Set<string>(); return [...m.session.players, ...bots].filter(p=>{if(!p?.id||seen.has(p.id))return false;seen.add(p.id);return true;}).map((p,index)=>({...p,seat:index,ready:p.kind==='bot'?true:!!p.ready})); }); if(m.session.status==='playing' && lanRoom) onStart(m.session.players, m.session.boardId ?? boardId, lanRoom, lanClient); } if(m.type==='chat'){ if(lanRoom && m.player===lanClient.clientId) return; const sender=players.find(p=>p.id===m.player)?.name??m.player; const item:ChatMessage={id:`${m.ts}-${m.player}-${Math.random().toString(36).slice(2,7)}`,player:sender,text:m.text,ts:m.ts}; setChatMessages(prev=>[...prev,item].slice(-300)); if(!chatOpen){setUnreadMessages(prev=>prev+1);setMessagePreview(item);window.setTimeout(()=>setMessagePreview(prev=>prev?.id===item.id?null:prev),3200);} } if(m.type==='emote'){if(lanRoom&&m.player===lanClient.clientId)return;const sender=players.find(p=>p.id===m.player)?.name??m.player;const item:ChatMessage={id:`${m.ts}-${m.player}-${Math.random().toString(36).slice(2,7)}`,player:sender,text:m.emoji,ts:m.ts};setChatMessages(prev=>[...prev,item].slice(-300));if(!chatOpen){setUnreadMessages(prev=>prev+1);setMessagePreview(item);window.setTimeout(()=>setMessagePreview(prev=>prev?.id===item.id?null:prev),3200);}} }), [lanClient, onStart, onSwitchGame, boardId, lanRoom, players, chatOpen, game.id]);
 
   const publicProfileFor = (profile: ReturnType<typeof getActiveProfile>) => ({
@@ -225,21 +252,21 @@ export function Lobby({ game, onStart, onBack, onSwitchGame }: LobbyProps) {
         <div style={styles.overlay}>
           <div style={styles.lanModal}>
             <button style={styles.close} onClick={() => { setLanOpen(false); setLanMode('choose'); }}>×</button>
-            <p style={styles.sectionLabel}>LOCAL NETWORK</p>
-            <h2 style={{margin:'4px 0 8px'}}>Play on LAN</h2>
-            <p style={{color:tokens.text.muted,fontSize:13}}>Connect both phones to the same Wi-Fi or the host phone's hotspot. The host shares a six-character room code; the other phone uses it to find the room.</p>
+            <p style={styles.sectionLabel}>{networkMode === 'online' ? 'INTERNET MULTIPLAYER' : 'LOCAL NETWORK'}</p>
+            <h2 style={{margin:'4px 0 8px'}}>{networkMode === 'online' ? 'Play online' : 'Play on LAN'}</h2>
+            <p style={{color:tokens.text.muted,fontSize:13}}>{networkMode === 'online' ? 'Connect with players anywhere using the online room code. The first request may take up to 50 seconds while the server wakes up.' : "Connect both phones to the same Wi-Fi or the host phone's hotspot. The host shares a six-character room code; the other phone uses it to find the room."}</p>
             {!lanRoom && lanMode === 'choose' && <div style={styles.lanActions}>
               <button style={styles.lanPrimary} onClick={() => setLanMode('host')}>Host room</button>
               <button style={styles.lanSecondary} onClick={() => setLanMode('join')}>Join room</button>
             </div>}
             {!lanRoom && lanMode !== 'choose' && <>
               <button type="button" style={{...styles.lanSecondary,marginBottom:10}} onClick={() => setLanMode('choose')}>← Back</button>
-              {!Capacitor.isNativePlatform() && <input style={styles.lanInput} value={lanUrl} onChange={e=>setLanUrl(e.target.value)} placeholder="http://192.168.1.10:8787" />}
+              {networkMode !== 'online' && !Capacitor.isNativePlatform() && <input style={styles.lanInput} value={lanUrl} onChange={e=>setLanUrl(e.target.value)} placeholder="http://192.168.1.10:8787" />}
               <input style={styles.lanInput} value={lanName} onChange={e=>setLanName(e.target.value)} placeholder="Your name" maxLength={32} />
-              {lanMode === 'join' && <><input style={styles.lanInput} value={lanCode} onChange={e=>setLanCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g, '').slice(0, 6))} placeholder="Six-character room code" aria-label="LAN room code" maxLength={6} autoCapitalize="characters" />{Capacitor.isNativePlatform() && <p style={{color:tokens.text.muted,fontSize:12,margin:'8px 0 0'}}>Room discovery checks the local network for this code.</p>}</>}
-              <button style={{...styles.lanPrimary,marginTop:10}} disabled={lanBusy || (lanMode === 'join' && lanCode.length !== 6)} onClick={async()=>{setLanBusy(true);try{const profile=getActiveProfile();const p:Player={id:'pending',profileId:profile.id,publicProfile:publicProfileFor(profile),name:lanName.trim()||profile.name,kind:'human',seat:lanMode==='host'?0:1,connected:true,ready:false};if(lanMode==='host'){const r=await lanClient.createRoom(lanUrl,game.id,p);setLanRoom(r);setLanHost(true);setPlayers([...r.session.players,...players.filter(x=>x.kind==='bot').map((bot,index)=>({...bot,seat:r.session.players.length+index}))]);setLanCode(r.code);}else{const r=await lanClient.joinRoom(lanUrl,game.id,lanCode,p);setLanRoom(r);setLanHost(false);setPlayers(r.session.players);} }catch(e){alert(e instanceof Error?e.message:(lanMode==='host'?'Could not create LAN room':'Could not join LAN room'))}finally{setLanBusy(false)}}}>{lanBusy?(lanMode==='host'?'Creating…':'Joining…'):(lanMode==='host'?'Create room':'Join room')}</button>
+              {lanMode === 'join' && <><input style={styles.lanInput} value={lanCode} onChange={e=>setLanCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))} placeholder="Six-character room code" aria-label="Room code" maxLength={6} autoCapitalize="characters" />{networkMode !== 'online' && Capacitor.isNativePlatform() && <p style={{color:tokens.text.muted,fontSize:12,margin:'8px 0 0'}}>Room discovery checks the local network for this code.</p>}</>}
+              <button style={{...styles.lanPrimary,marginTop:10}} disabled={lanBusy || (lanMode === 'join' && lanCode.length !== 6)} onClick={async()=>{setLanBusy(true);try{const profile=getActiveProfile();const p:Player={id:'pending',profileId:profile.id,publicProfile:publicProfileFor(profile),name:lanName.trim()||profile.name,kind:'human',seat:lanMode==='host'?0:1,connected:true,ready:false};if(lanMode==='host'){const r=await lanClient.createRoom(lanUrl,game.id,p);setLanRoom(r);setLanHost(true);setPlayers([...r.session.players,...players.filter(x=>x.kind==='bot').map((bot,index)=>({...bot,seat:r.session.players.length+index}))]);setLanCode(r.code);}else{const r=await lanClient.joinRoom(lanUrl,game.id,lanCode,p);setLanRoom(r);setLanHost(false);setPlayers(r.session.players);} }catch(e){alert(e instanceof Error?e.message:(lanMode==='host'?(networkMode==='online'?'Could not create online room':'Could not create LAN room'):(networkMode==='online'?'Could not join online room':'Could not join LAN room')))}finally{setLanBusy(false)}}}>{lanBusy?(lanMode==='host'?'Creating…':'Joining…'):(lanMode==='host'?(networkMode==='online'?'Create online room':'Create room'):'Join room')}</button>
             </>}
-            {lanRoom && <div style={styles.roomBox}><b>ROOM {lanRoom.code}</b><span>{lanHost?'You are host':'Connected to host'}</span>{lanRoom.baseUrl && <span style={{fontFamily:'monospace',fontSize:11,opacity:.75}}>{lanRoom.baseUrl}</span>}{lanNotice && <span role="status" style={{padding:8,borderRadius:8,background:'rgba(255,92,122,.12)',color:'#ff8aa0'}}>{lanNotice}</span>}{lanHost && <label style={{display:'grid',gap:6,fontSize:12,color:tokens.text.muted}}>Game for this room<select style={styles.lanInput} value={game.id} disabled={lanBusy} onChange={async e=>{const next=e.target.value;if(!next||next===game.id)return;setLanBusy(true);try{await lanClient.switchGame(next);setBoardId(undefined);onSwitchGame(next);setLanNotice('Game changed. Everyone needs to ready up again.');}catch(err){alert(err instanceof Error?err.message:'Could not change LAN game')}finally{setLanBusy(false)}}}>{GAMES.filter(item=>item.supports.lan).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{players.map(p=><div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,fontSize:12}}><span>{p.name} · {p.kind==='bot'?'🤖 bot':p.connected?'online':'offline'}</span><b style={{color:p.kind==='bot'||p.ready|| (lanHost&&p.id===lanClient.clientId)?tokens.accent.jade:tokens.text.muted}}>{p.kind==='bot'?'READY':lanHost&&p.id===lanClient.clientId?(players.length>=game.minPlayers&&players.every(other=>other.kind==='bot'||other.id===lanClient.clientId||(other.connected&&other.ready))?'HOST · READY TO START':'HOST · WAITING'):p.ready?'READY':'NOT READY'}</b></div>)}{!lanHost && lanRoom.session.status==='lobby' && <button style={styles.lanPrimary} disabled={lanBusy} onClick={async()=>{setLanBusy(true);try{const mine=players.find(p=>p.id===lanClient.clientId);await lanClient.setReady(!(mine?.ready));setLanNotice('');}catch(e){alert(e instanceof Error?e.message:'Could not update readiness')}finally{setLanBusy(false)}}}>{players.find(p=>p.id===lanClient.clientId)?.ready?'Cancel ready':'Ready'}</button>}{lanHost&&<button style={{...styles.lanPrimary,opacity:players.length>=game.minPlayers&&players.every(p=>p.kind==='bot'||p.id===lanClient.clientId||(p.connected&&p.ready))?1:.45}} disabled={lanBusy||players.length<game.minPlayers||!players.every(p=>p.kind==='bot'||p.id===lanClient.clientId||(p.connected&&p.ready))} onClick={async()=>{setLanBusy(true);try{await lanClient.start(boardId,players);}catch(e){alert(e instanceof Error?e.message:'Could not start LAN game')}finally{setLanBusy(false)}}}>{lanBusy?'Starting…':'Start'}</button>}</div>}
+            {lanRoom && <div style={styles.roomBox}><b>{networkMode === 'online' ? 'ONLINE ROOM' : 'ROOM'} {lanRoom.code}</b><span>{lanHost?'You are host':'Connected to host'}</span>{lanRoom.baseUrl && <span style={{fontFamily:'monospace',fontSize:11,opacity:.75}}>{lanRoom.baseUrl}</span>}{lanNotice && <span role="status" style={{padding:8,borderRadius:8,background:'rgba(255,92,122,.12)',color:'#ff8aa0'}}>{lanNotice}</span>}{lanHost && <label style={{display:'grid',gap:6,fontSize:12,color:tokens.text.muted}}>Game for this room<select style={styles.lanInput} value={game.id} disabled={lanBusy} onChange={async e=>{const next=e.target.value;if(!next||next===game.id)return;setLanBusy(true);try{await lanClient.switchGame(next);setBoardId(undefined);onSwitchGame(next);setLanNotice('Game changed. Everyone needs to ready up again.');}catch(err){alert(err instanceof Error?err.message:'Could not change LAN game')}finally{setLanBusy(false)}}}>{GAMES.filter(item=>item.supports.lan).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{players.map(p=><div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,fontSize:12}}><span>{p.name} · {p.kind==='bot'?'🤖 bot':p.connected?'online':'offline'}</span><b style={{color:p.kind==='bot'||p.ready|| (lanHost&&p.id===lanClient.clientId)?tokens.accent.jade:tokens.text.muted}}>{p.kind==='bot'?'READY':lanHost&&p.id===lanClient.clientId?(players.length>=game.minPlayers&&players.every(other=>other.kind==='bot'||other.id===lanClient.clientId||(other.connected&&other.ready))?'HOST · READY TO START':'HOST · WAITING'):p.ready?'READY':'NOT READY'}</b></div>)}{!lanHost && lanRoom.session.status==='lobby' && <button style={styles.lanPrimary} disabled={lanBusy} onClick={async()=>{setLanBusy(true);try{const mine=players.find(p=>p.id===lanClient.clientId);await lanClient.setReady(!(mine?.ready));setLanNotice('');}catch(e){alert(e instanceof Error?e.message:'Could not update readiness')}finally{setLanBusy(false)}}}>{players.find(p=>p.id===lanClient.clientId)?.ready?'Cancel ready':'Ready'}</button>}{lanHost&&<button style={{...styles.lanPrimary,opacity:players.length>=game.minPlayers&&players.every(p=>p.kind==='bot'||p.id===lanClient.clientId||(p.connected&&p.ready))?1:.45}} disabled={lanBusy||players.length<game.minPlayers||!players.every(p=>p.kind==='bot'||p.id===lanClient.clientId||(p.connected&&p.ready))} onClick={async()=>{setLanBusy(true);try{await lanClient.start(boardId,players);}catch(e){alert(e instanceof Error?e.message:'Could not start LAN game')}finally{setLanBusy(false)}}}>{lanBusy?'Starting…':'Start'}</button>}</div>}
           </div>
         </div>
       )}

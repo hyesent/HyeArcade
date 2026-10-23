@@ -10,9 +10,11 @@ interface HomeProps {
   onSelectGame: (id: string) => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
+  onOpenOnlineLobby: () => void;
+  onOpenMultiplayer: () => void;
 }
 
-export function Home({ onSelectGame, onOpenProfile, onOpenSettings }: HomeProps) {
+export function Home({ onSelectGame, onOpenProfile, onOpenSettings, onOpenOnlineLobby, onOpenMultiplayer }: HomeProps) {
   const [filter, setFilter] = useState<string>('all');
   const profile = getActiveProfile();
   const activeTitle = getActiveTitle(profile);
@@ -73,6 +75,19 @@ export function Home({ onSelectGame, onOpenProfile, onOpenSettings }: HomeProps)
         <span style={styles.profileProgress}>{profile.totalXp.toLocaleString()} XP <span>·</span> {profile.matchesPlayed} matches</span>
         <Icon name="arrow-left" size={15} color={tokens.text.muted} style={{ transform: 'rotate(180deg)' }} />
       </button>
+
+      <div style={styles.multiplayerActions}>
+        <button type="button" style={styles.onlineLobbyButton} onClick={() => { play('button-tap', 0.3); onOpenOnlineLobby(); }}>
+          <span style={styles.multiplayerGlyph}>◎</span>
+          <span style={styles.multiplayerText}><strong>Online Lobby</strong><small>Find rooms and play over the internet</small></span>
+          <Icon name="arrow-left" size={16} color={tokens.accent.gold} style={{ transform: 'rotate(180deg)' }} />
+        </button>
+        <button type="button" style={styles.multiplayerButton} onClick={() => { play('button-tap', 0.3); onOpenMultiplayer(); }}>
+          <span style={styles.multiplayerGlyph}>⌁</span>
+          <span style={styles.multiplayerText}><strong>Multiplayer</strong><small>Choose online or local network</small></span>
+          <Icon name="arrow-left" size={16} color={tokens.text.secondary} style={{ transform: 'rotate(180deg)' }} />
+        </button>
+      </div>
 
       <div style={styles.metaRow}>
         <span style={styles.meta}>
@@ -199,6 +214,11 @@ const styles: Record<string, React.CSSProperties> = {
   profileAvatar: { width: 35, height: 35, display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: 11, background: tokens.accent.gold, color: tokens.text.inverse, fontWeight: 900, fontFamily: tokens.font.display },
   profileIdentity: { display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 },
   profileProgress: { marginLeft: 'auto', display: 'flex', gap: 5, alignItems: 'center', fontSize: 10, color: tokens.text.secondary, flexShrink: 0 },
+  multiplayerActions: { display: 'grid', gridTemplateColumns: '1fr', gap: 9 },
+  onlineLobbyButton: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 14px', borderRadius: 17, border: '1px solid rgba(232,185,92,.32)', background: 'linear-gradient(110deg,rgba(232,185,92,.12),rgba(255,255,255,.025))', color: tokens.text.primary, textAlign: 'left' },
+  multiplayerButton: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 14px', borderRadius: 17, border: `1px solid ${tokens.bg.border}`, background: tokens.bg.surface, color: tokens.text.primary, textAlign: 'left' },
+  multiplayerGlyph: { display: 'grid', placeItems: 'center', width: 38, height: 38, flexShrink: 0, borderRadius: 12, background: 'rgba(232,185,92,.1)', color: tokens.accent.gold, fontSize: 24 },
+  multiplayerText: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 },
   metaRow: {
     display: 'flex',
     justifyContent: 'space-between',

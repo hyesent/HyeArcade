@@ -48,7 +48,7 @@ export async function listOnlineRooms(gameId?: string): Promise<PublicOnlineRoom
   return result.rooms ?? [];
 }
 
-export function createOnlineClient(): LanClient {
+export function createOnlineClient(isPublicRoom = true): LanClient {
   let base = ONLINE_API_BASE;
   let code = '';
   let id = '';
@@ -112,7 +112,7 @@ export function createOnlineClient(): LanClient {
     async createRoom(_url: string, gameId: string, player: Player) {
       base = ONLINE_API_BASE;
       const room = await request<LanRoomInfo>(`${base}/api/rooms`, {
-        method: 'POST', body: JSON.stringify({ gameId, player, clientToken }),
+        method: 'POST', body: JSON.stringify({ gameId, player, clientToken, isPublic: isPublicRoom }),
       });
       code = room.code; id = room.clientId; host = true; session = room.session;
       await api.connect(base, code, id);
@@ -123,7 +123,7 @@ export function createOnlineClient(): LanClient {
       const wanted = roomCode.trim().toUpperCase();
       if (!wanted) throw new Error('Enter an online room code.');
       const room = await request<LanRoomInfo>(`${base}/api/rooms/${wanted}/join`, {
-        method: 'POST', body: JSON.stringify({ gameId, player, clientToken }),
+        method: 'POST', body: JSON.stringify({ gameId, player, clientToken, isPublic: isPublicRoom }),
       });
       code = room.code; id = room.clientId; host = false; session = room.session;
       await api.connect(base, code, id);

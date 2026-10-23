@@ -37,6 +37,8 @@ test('LAN relay validates sender identity, sequences events, and limits chat pay
   const discoverInfo = await discover.json();
   assert.equal(discoverInfo.code, host.code);
   assert.equal('session' in discoverInfo, false, 'room discovery should not expose a full game session');
+  await post(`/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  await post(`/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
   const start = await post(`/api/rooms/${host.code}/start`, { clientId: host.clientId });
   assert.equal(start.status, 200);
 
@@ -144,6 +146,8 @@ test('private-information games require a view for every player and deliver only
   const joined = await postAt(privateBase, `/api/rooms/${host.code}/join`, { gameId: 'uno', player: { name: 'Guest' } });
   assert.equal(joined.status, 200);
   const guest = await joined.json();
+  await postAt(privateBase, `/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  await postAt(privateBase, `/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
   await postAt(privateBase, `/api/rooms/${host.code}/start`, { clientId: host.clientId });
 
   const state = { hands: [{ playerId: host.clientId, cards: ['secret-host-card'] }, { playerId: guest.clientId, cards: ['secret-guest-card'] }], deck: ['secret-deck-card'] };
@@ -196,6 +200,8 @@ test('guest move requests are private to the host and do not create sequence gap
   const host = await created.json();
   const joined = await postAt(relayBase, `/api/rooms/${host.code}/join`, { gameId: 'connect-four', player: { name: 'Guest' } });
   const guest = await joined.json();
+  await postAt(relayBase, `/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  await postAt(relayBase, `/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
   await postAt(relayBase, `/api/rooms/${host.code}/start`, { clientId: host.clientId });
 
   async function openStream(clientId) {
@@ -249,7 +255,10 @@ test('LAN room start preserves the host-selected board or game mode', async t =>
   while (Date.now() < end) { try { const r = await fetch(modeBase); if (r.status === 404) break; } catch {} await new Promise(resolve => setTimeout(resolve, 60)); }
   const created = await postAt(modeBase, '/api/rooms', { gameId: 'pirate-go', player: { name: 'Host' } });
   const host = await created.json();
-  await postAt(modeBase, `/api/rooms/${host.code}/join`, { gameId: 'pirate-go', player: { name: 'Guest' } });
+  const guestResponse = await postAt(modeBase, `/api/rooms/${host.code}/join`, { gameId: 'pirate-go', player: { name: 'Guest' } });
+  const guest = await guestResponse.json();
+  await postAt(modeBase, `/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  await postAt(modeBase, `/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
   const started = await postAt(modeBase, `/api/rooms/${host.code}/start`, { clientId: host.clientId, boardId: 'traditional-go' });
   assert.equal(started.status, 200);
   const stream = await fetch(`${modeBase}/api/rooms/${host.code}/events?clientId=${encodeURIComponent(host.clientId)}`);
@@ -274,10 +283,63 @@ test('LAN host can register configured bots when starting a room', async t => {
   while (Date.now() < end) { try { const r = await fetch(botBase); if (r.status === 404) break; } catch {} await new Promise(resolve => setTimeout(resolve, 60)); }
   const created = await postAt(botBase, '/api/rooms', { gameId: 'ludo', player: { name: 'Host' } });
   const host = await created.json();
-  await postAt(botBase, `/api/rooms/${host.code}/join`, { gameId: 'ludo', player: { name: 'Guest' } });
+  const guestResponse = await postAt(botBase, `/api/rooms/${host.code}/join`, { gameId: 'ludo', player: { name: 'Guest' } });
+  const guest = await guestResponse.json();
+  await postAt(botBase, `/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  await postAt(botBase, `/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
   const started = await postAt(botBase, `/api/rooms/${host.code}/start`, { clientId: host.clientId, bots: [{ id: 'bot2', name: 'Hye', kind: 'bot', difficulty: 'hard', personality: 'strategist' }] });
   assert.equal(started.status, 200);
   const roomResponse = await fetch(`${botBase}/api/rooms/${host.code}`);
   const room = await roomResponse.json();
   assert.deepEqual(room.players.map(p => p.name), ['Host', 'Guest', 'Hye']);
+});
+
+
+test('LAN joins are idempotent per client token and host cannot start before every human is ready', async t => {
+  const p = 26000 + Math.floor(Math.random() * 10000);
+  const baseUrl = `http://127.0.0.1:${p}`;
+  const child = spawn(process.execPath, ['--experimental-strip-types', 'server/lan-server.ts', '--port', String(p), '--host', '127.0.0.1'], { stdio: 'ignore' });
+  t.after(() => { if (child && !child.killed) child.kill('SIGTERM'); });
+  const end = Date.now() + 6000;
+  while (Date.now() < end) { try { const r = await fetch(baseUrl); if (r.status === 404) break; } catch {} await new Promise(resolve => setTimeout(resolve, 80)); }
+  const createdResponse = await postAt(baseUrl, '/api/rooms', { gameId: 'chess', clientToken: 'host-device', player: { name: 'Host' } });
+  assert.equal(createdResponse.status, 200);
+  const host = await createdResponse.json();
+  const firstResponse = await postAt(baseUrl, `/api/rooms/${host.code}/join`, { gameId: 'chess', clientToken: 'guest-device', player: { name: 'Guest' } });
+  assert.equal(firstResponse.status, 200);
+  const guest = await firstResponse.json();
+  const duplicateResponse = await postAt(baseUrl, `/api/rooms/${host.code}/join`, { gameId: 'chess', clientToken: 'guest-device', player: { name: 'Guest' } });
+  assert.equal(duplicateResponse.status, 200);
+  const duplicate = await duplicateResponse.json();
+  assert.equal(duplicate.clientId, guest.clientId, 'retry returns the original player identity');
+  assert.equal(duplicate.session.players.length, 2, 'retry does not create a duplicate lobby player');
+  const notReady = await postAt(baseUrl, `/api/rooms/${host.code}/start`, { clientId: host.clientId });
+  assert.equal(notReady.status, 409, 'host cannot start while humans are not ready');
+  await postAt(baseUrl, `/api/rooms/${host.code}/message`, { clientId: host.clientId, message: { type: 'ready', ready: true } });
+  const stillNotReady = await postAt(baseUrl, `/api/rooms/${host.code}/start`, { clientId: host.clientId });
+  assert.equal(stillNotReady.status, 409, 'host cannot start before the guest is ready');
+  await postAt(baseUrl, `/api/rooms/${host.code}/message`, { clientId: guest.clientId, message: { type: 'ready', ready: true } });
+  const started = await postAt(baseUrl, `/api/rooms/${host.code}/start`, { clientId: host.clientId });
+  assert.equal(started.status, 200, 'match starts after all humans are ready');
+});
+
+
+test('LAN host can switch the shared lobby game before start and all members receive the new session', async t => {
+  const p = 27000 + Math.floor(Math.random() * 8000);
+  const baseUrl = `http://127.0.0.1:${p}`;
+  const child = spawn(process.execPath, ['--experimental-strip-types', 'server/lan-server.ts', '--port', String(p), '--host', '127.0.0.1'], { stdio: 'ignore' });
+  t.after(() => { if (child && !child.killed) child.kill('SIGTERM'); });
+  const end = Date.now() + 6000;
+  while (Date.now() < end) { try { const r = await fetch(baseUrl); if (r.status === 404) break; } catch {} await new Promise(resolve => setTimeout(resolve, 80)); }
+  const created = await postAt(baseUrl, '/api/rooms', { gameId: 'chess', player: { name: 'Host' } });
+  const host = await created.json();
+  const joinedResponse = await postAt(baseUrl, `/api/rooms/${host.code}/join`, { gameId: 'chess', player: { name: 'Guest' } });
+  const guest = await joinedResponse.json();
+  const forbidden = await postAt(baseUrl, `/api/rooms/${host.code}/switch-game`, { clientId: guest.clientId, gameId: 'ludo' });
+  assert.equal(forbidden.status, 403, 'non-host cannot change the game');
+  const switched = await postAt(baseUrl, `/api/rooms/${host.code}/switch-game`, { clientId: host.clientId, gameId: 'ludo' });
+  assert.equal(switched.status, 200);
+  const info = await (await fetch(`${baseUrl}/api/rooms/${host.code}`)).json();
+  assert.equal(info.gameId, 'ludo');
+  assert.equal(info.status, 'lobby');
 });

@@ -15,9 +15,8 @@ export function GameGuide({ gameId, onClose }: { gameId: string; onClose: () => 
         <section style={styles.section}><h3>5. How to win</h3><p>{guide.win}</p></section>
         <section style={styles.section}><h3>Strategy tips</h3><ul>{guide.tips.map((item, i) => <li key={i}>{item}</li>)}</ul></section>
         <section style={styles.section}><h3>Common mistakes</h3><ul>{(guide.commonMistakes ?? ['Trying to make a move that is not legal in the current position or phase.','Forgetting a forced move, special rule, or turn restriction.','Ignoring move feedback or the current score before committing to an action.']).map((item, i) => <li key={i}>{item}</li>)}</ul></section>
-        {guide.variantNote && <aside style={styles.note}><b>Rule note</b><p>{guide.variantNote}</p></aside>}
       </div>
-      <footer style={styles.footer}><span>Rules can vary by edition. This guide documents Hye Arcade's intended variant.</span><button type="button" onClick={onClose} style={styles.done}>Got it</button></footer>
+      <footer style={styles.footer}><span>Use the highlighted legal moves and on-screen prompts during play.</span><button type="button" onClick={onClose} style={styles.done}>Got it</button></footer>
     </section>
   </div>;
 }

@@ -4,6 +4,7 @@ import { Home } from './screens/Home';
 import { Lobby } from './screens/Lobby';
 import { Game } from './screens/Game';
 import { Profile } from './screens/Profile';
+import { MultiplayerMenu, OnlineLobby } from './screens/Multiplayer';
 import { getGame } from './games/registry';
 import type { Player } from './core/types';
 import type { LanRoomInfo, LanClient } from './core/lan';
@@ -15,7 +16,9 @@ import { tokens } from './theme/tokens';
 type Screen =
   | { name: 'home' }
   | { name: 'profile' }
-  | { name: 'lobby'; gameId: string }
+  | { name: 'multiplayer' }
+  | { name: 'onlineLobby' }
+  | { name: 'lobby'; gameId: string; networkMode?: 'local' | 'lan' | 'online'; initialRoomCode?: string; autoCreateRoom?: boolean }
   | { name: 'game'; gameId: string; players: Player[]; boardId?: string; lanRoom?: LanRoomInfo; lanClient?: LanClient };
 
 export default function App() {
@@ -35,10 +38,24 @@ export default function App() {
           onSelectGame={(gameId) => setScreen({ name: 'lobby', gameId })}
           onOpenProfile={() => setScreen({ name: 'profile' })}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenOnlineLobby={() => setScreen({ name: 'onlineLobby' })}
+          onOpenMultiplayer={() => setScreen({ name: 'multiplayer' })}
         />
       )}
 
       {screen.name === 'profile' && <Profile onBack={() => setScreen({ name: 'home' })} />}
+
+      {screen.name === 'multiplayer' && <MultiplayerMenu
+        onBack={() => setScreen({ name: 'home' })}
+        onOnline={() => setScreen({ name: 'onlineLobby' })}
+        onLanGame={(gameId) => setScreen({ name: 'lobby', gameId, networkMode: 'lan' })}
+      />}
+
+      {screen.name === 'onlineLobby' && <OnlineLobby
+        onBack={() => setScreen({ name: 'home' })}
+        onCreateRoom={(gameId) => setScreen({ name: 'lobby', gameId, networkMode: 'online', autoCreateRoom: true })}
+        onJoinRoom={(gameId, code) => setScreen({ name: 'lobby', gameId, networkMode: 'online', initialRoomCode: code })}
+      />}
 
       {screen.name === 'lobby' && (() => {
         const game = getGame(screen.gameId);
@@ -50,7 +67,10 @@ export default function App() {
           <Lobby
             game={game}
             onBack={() => setScreen({ name: 'home' })}
-            onSwitchGame={(gameId) => setScreen({ name: 'lobby', gameId })}
+            networkMode={screen.networkMode}
+            initialRoomCode={screen.initialRoomCode}
+            autoCreateRoom={screen.autoCreateRoom}
+            onSwitchGame={(gameId) => setScreen(prev => prev.name === 'lobby' ? { ...prev, gameId } : { name: 'lobby', gameId })}
             onStart={(players, boardId, lanRoom, lanClient) =>
               setScreen({ name: 'game', gameId: screen.gameId, players, boardId, lanRoom, lanClient })
             }

@@ -80,6 +80,7 @@ export function LudoBoard({ state, onMove, disabled }: Props) {
       timers.current.push(
         setTimeout(() => {
           setAnimating(false);
+          setAnimStep({});
           onMove({
             type: 'pick',
             player: currentId,
@@ -99,6 +100,7 @@ export function LudoBoard({ state, onMove, disabled }: Props) {
     const stepNext = () => {
       if (i >= steps.length) {
         setAnimating(false);
+        setAnimStep({});
         onMove({
           type: 'pick',
           player: currentId,
@@ -183,7 +185,7 @@ export function LudoBoard({ state, onMove, disabled }: Props) {
         </div>
       </div>
 
-      {showDieChoice && <div role="dialog" aria-label="Choose a die" style={styles.dieModal}><div style={styles.modalCard}><strong style={{fontSize:16}}>Choose your move</strong><span style={{fontSize:12,opacity:.72}}>Both dice are shown. Choose a usable die, then tap a highlighted pawn.</span><div style={styles.dieChoices}>{([0,1] as const).map(i=>{const usable=availableDice.includes(i);return <button key={i} disabled={!usable} aria-disabled={!usable} onClick={()=>chooseDie(i)} style={{...styles.dieChoice,background:usable?COLOR_HEX[currentColor]:'#343847',boxShadow:usable?tokens.shadow.glow(COLOR_HEX[currentColor]):'none',opacity:usable?1:.55,cursor:usable?'pointer':'not-allowed'}}>{state.lastRoll![i]}<small>{usable?`Die ${i+1}`:`Die ${i+1} · no move`}</small></button>})}</div></div></div>}
+      {showDieChoice && <div role="dialog" aria-modal="true" aria-label="Choose a die" style={styles.dieModal}><div style={styles.modalCard}><div style={{display:'flex',alignItems:'center',gap:8}}><span style={{...styles.modalIcon,background:COLOR_HEX[currentColor]}}>⚄</span><div style={{textAlign:'left'}}><strong style={{fontSize:18,display:'block'}}>Choose a die</strong><span style={{fontSize:11,opacity:.7}}>Move one pawn using one die</span></div></div><p style={styles.modalHint}>Tap an available die below. Then tap one of the glowing pawns on the board.</p><div style={styles.dieChoices}>{([0,1] as const).map(i=>{const usable=availableDice.includes(i);return <button key={i} disabled={!usable} aria-disabled={!usable} onClick={()=>chooseDie(i)} style={{...styles.dieChoice,background:usable?`linear-gradient(145deg,${COLOR_HEX[currentColor]},${COLOR_HEX[currentColor]}bb)`:'linear-gradient(145deg,#2b3040,#202431)',color:usable?'#151923':'#858a98',border:usable?'1px solid rgba(255,255,255,.55)':'1px solid rgba(255,255,255,.08)',boxShadow:usable?tokens.shadow.glow(COLOR_HEX[currentColor]):'none',opacity:usable?1:.72,cursor:usable?'pointer':'not-allowed'}}><span style={{fontSize:34,lineHeight:1}}>{state.lastRoll![i]}</span><small>{usable?`DIE ${i+1} · PLAY`:`DIE ${i+1} · NO MOVE`}</small></button>})}</div><div style={styles.modalFoot}><span style={{display:'inline-block',width:7,height:7,borderRadius:99,background:COLOR_HEX[currentColor]}} /> {currentColor} is playing</div></div></div>}
 
       <div style={styles.controls}>
         <div style={styles.statusBar}>
@@ -252,9 +254,12 @@ const styles: Record<string, React.CSSProperties> = {
     aspectRatio: '1 / 1',
   },
   dieModal: { position:'absolute', inset:0, zIndex:50, display:'grid', placeItems:'center', padding:12, background:'rgba(8,10,18,.72)', borderRadius:16 },
-  modalCard: { width:'min(320px, 100%)', display:'flex', flexDirection:'column', alignItems:'center', gap:10, padding:'20px 16px', borderRadius:20, border:'1px solid rgba(255,255,255,.16)', background:'#171b29', boxShadow:'0 20px 60px rgba(0,0,0,.45)', textAlign:'center' },
-  dieChoices: { display:'flex', justifyContent:'center', gap:12, marginTop:4 },
-  dieChoice: { width:76, height:76, minHeight:76, borderRadius:18, color:'#17131a', fontSize:30, fontWeight:900, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:0 },
+  modalCard: { width:'min(350px, 100%)', display:'flex', flexDirection:'column', alignItems:'stretch', gap:13, padding:'20px 18px 14px', borderRadius:24, border:'1px solid rgba(255,255,255,.18)', background:'linear-gradient(155deg,rgba(35,40,57,.98),rgba(17,20,31,.99))', boxShadow:'0 24px 70px rgba(0,0,0,.58),inset 0 1px rgba(255,255,255,.07)', textAlign:'center', backdropFilter:'blur(18px)' },
+  modalIcon: { width:42,height:42,display:'grid',placeItems:'center',borderRadius:14,color:'#151923',fontSize:25,fontWeight:900,boxShadow:'0 5px 16px rgba(0,0,0,.22)' },
+  modalHint: { margin:0,fontSize:12,lineHeight:1.55,color:'rgba(255,255,255,.72)',textAlign:'left' },
+  modalFoot: { display:'flex',alignItems:'center',justifyContent:'center',gap:7,fontSize:11,fontWeight:800,letterSpacing:1,color:'rgba(255,255,255,.7)',paddingTop:4 },
+  dieChoices: { display:'flex', justifyContent:'center', gap:12, marginTop:2 },
+  dieChoice: { flex:1,maxWidth:118,height:92,minHeight:92,borderRadius:20,fontSize:30,fontWeight:900,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,transition:'transform 120ms ease,filter 120ms ease' },
   controls: {
     display: 'flex',
     flexDirection: 'column',

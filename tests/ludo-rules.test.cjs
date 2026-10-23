@@ -152,3 +152,26 @@ test('easy, medium, and hard bots handle complete 2-, 3-, and 4-player matches',
     }
   }
 });
+
+test('capturing an opponent pawn returns it to its own yard and stops its track movement', () => {
+  const state = ludo.setup(players());
+  const pawns = state.pawns.map(p => ({ ...p }));
+  // Red pawn is on an unprotected ring square; yellow's pawn occupies the same square.
+  pawns[0] = { ...pawns[0], state: 'ring', step: 5 };
+  // Yellow's ring index 18 maps to the same absolute ring square as red step 5.
+  pawns[4] = { ...pawns[4], state: 'ring', step: 32 };
+  const ready = { ...state, pawns, dice: 1, selectedDie: 0, mustMove: true, remainingDice: [true, false], lastRoll: [1, 2] };
+  const next = ludo.apply(ready, move('pick', 'red', { pawnIndex: 0, dieIndex: 0 }));
+  assert.equal(next.pawns[0].step, 6);
+  assert.equal(next.pawns[4].state, 'yard');
+  assert.equal(next.pawns[4].step, -1);
+});
+
+test('a pawn in the coloured home lane is not capturable', () => {
+  const state = ludo.setup(players());
+  const pawns = state.pawns.map(p => ({ ...p }));
+  pawns[0] = { ...pawns[0], state: 'home-col', step: 53 };
+  pawns[4] = { ...pawns[4], state: 'ring', step: 32 };
+  const { captures } = require(path.join(outRoot, 'games', 'ludo', 'logic.js'));
+  assert.deepEqual(captures(pawns[4], pawns), []);
+});

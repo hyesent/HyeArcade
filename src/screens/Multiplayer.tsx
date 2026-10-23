@@ -24,7 +24,7 @@ export function MultiplayerMenu({ onBack, onOnline, onLanGame }: MultiplayerMenu
 
 interface OnlineLobbyProps {
   onBack: () => void;
-  onCreateRoom: (gameId: string) => void;
+  onCreateRoom: (gameId: string, isPublic: boolean) => void;
   onJoinRoom: (gameId: string, code: string) => void;
 }
 
@@ -33,6 +33,7 @@ export function OnlineLobby({ onBack, onCreateRoom, onJoinRoom }: OnlineLobbyPro
   const [filter, setFilter] = useState('all');
   const [mode, setMode] = useState<'browse'|'create'|'join'>('browse');
   const [createGame, setCreateGame] = useState('ludo');
+  const [roomVisibility, setRoomVisibility] = useState<'public' | 'private'>('public');
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -95,7 +96,7 @@ export function OnlineLobby({ onBack, onCreateRoom, onJoinRoom }: OnlineLobbyPro
       {rooms.length ? <div style={styles.roomList}>{rooms.map(room=>{const game=getGame(room.gameId);return <article key={room.code} style={styles.roomCard}><div style={styles.roomGlyph}>{game?.name.slice(0,1)??'H'}</div><div style={styles.roomDetails}><strong>{game?.name??room.gameId}</strong><span>Hosted by {room.hostName}</span><small>{room.players}/{room.maxPlayers} players · Waiting</small></div><button style={styles.joinButton} disabled={busy || !room.hostOnline} onClick={()=>onJoinRoom(room.gameId,room.code)}>{room.hostOnline?'Join':'Offline'}</button></article>})}</div> : <div style={styles.empty}><span>◎</span><strong>No waiting rooms yet</strong><p>Create a room and invite friends, or check back in a moment.</p><button style={styles.primary} onClick={()=>setMode('create')}>Create a room</button></div>}
       {lastUpdated>0&&<p style={styles.updated}>Updated {new Date(lastUpdated).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</p>}
     </>}
-    {mode==='create' && <section style={styles.panel}><h2 style={styles.panelTitle}>Create an online room</h2><p style={styles.panelText}>Choose a game. You’ll enter its normal in-game lobby, where you can add bots, chat, wait for guests, and start when everyone is ready.</p><label style={styles.label}>Game<select style={styles.selectFull} value={createGame} onChange={e=>setCreateGame(e.target.value)}>{onlineGames.map(game=><option key={game.id} value={game.id}>{game.name} · {game.minPlayers}–{game.maxPlayers} players</option>)}</select></label><button style={styles.primary} onClick={()=>onCreateRoom(createGame)}>Create room →</button><p style={styles.panelFoot}>A room code will be available to share. Players can also discover waiting rooms in the public browser.</p></section>}
+    {mode==='create' && <section style={styles.panel}><h2 style={styles.panelTitle}>Create an online room</h2><p style={styles.panelText}>Choose a game. You’ll enter its normal in-game lobby, where you can add bots, chat, wait for guests, and start when everyone is ready.</p><label style={styles.label}>Game<select style={styles.selectFull} value={createGame} onChange={e=>setCreateGame(e.target.value)}>{onlineGames.map(game=><option key={game.id} value={game.id}>{game.name} · {game.minPlayers}–{game.maxPlayers} players</option>)}</select></label><label style={styles.label}>Room visibility<select style={styles.selectFull} value={roomVisibility} onChange={e=>setRoomVisibility(e.target.value as 'public'|'private')}><option value='public'>Public — appears in room browser</option><option value='private'>Private — code required, hidden from browser</option></select></label><button style={styles.primary} onClick={()=>onCreateRoom(createGame,roomVisibility==='public')}>Create {roomVisibility} room →</button><p style={styles.panelFoot}>{roomVisibility==='private'?'Only people with the six-character room code can find and join this room.':'Your waiting room appears in the public browser; friends can also join by code.'}</p></section>}
     {mode==='join' && <section style={styles.panel}><h2 style={styles.panelTitle}>Join a private room</h2><p style={styles.panelText}>Enter the six-character code shared by the host.</p><label style={styles.label}>Room code<input style={styles.codeInput} value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6))} placeholder="ABC123" maxLength={6} autoCapitalize="characters" autoCorrect="off" /></label><button style={styles.primary} disabled={busy||joinCode.length!==6} onClick={()=>void joinByCode()}>{busy?'Connecting…':'Join room →'}</button></section>}
   </main>;
 }

@@ -20,11 +20,12 @@ interface LobbyProps {
   networkMode?: 'local' | 'lan' | 'online';
   initialRoomCode?: string;
   autoCreateRoom?: boolean;
+  onlineRoomPublic?: boolean;
 }
 
 const SEAT_COLORS = ['#FF9A3C', '#5FA8E8', '#4FD1A0', '#FF5C7A', '#8B7FE8', '#E8B95C'];
 
-export function Lobby({ game, onStart, onBack, onSwitchGame, networkMode = 'local', initialRoomCode, autoCreateRoom = false }: LobbyProps) {
+export function Lobby({ game, onStart, onBack, onSwitchGame, networkMode = 'local', initialRoomCode, autoCreateRoom = false, onlineRoomPublic = true }: LobbyProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [profilePlayer, setProfilePlayer] = useState<Player | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -45,7 +46,7 @@ export function Lobby({ game, onStart, onBack, onSwitchGame, networkMode = 'loca
   const [lanRoom, setLanRoom] = useState<LanRoomInfo | null>(null);
   const [lanBusy, setLanBusy] = useState(false);
   const [lanNotice, setLanNotice] = useState('');
-  const lanClient = useState<LanClient>(() => networkMode === 'online' ? createOnlineClient() : createLanClient())[0];
+  const lanClient = useState<LanClient>(() => networkMode === 'online' ? createOnlineClient(onlineRoomPublic) : createLanClient())[0];
   const autoConnectPromise = useRef<Promise<LanRoomInfo> | null>(null);
   useEffect(() => { setBoardId(game.boards?.[0]?.id); }, [game.id]);
   useEffect(() => {

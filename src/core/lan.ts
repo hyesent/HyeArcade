@@ -24,6 +24,8 @@ export interface LanClient extends Transport {
   createRoom(baseUrl: string, gameId: string, player: Player): Promise<LanRoomInfo>;
   joinRoom(baseUrl: string, gameId: string, roomCode: string, player: Player): Promise<LanRoomInfo>;
   start(boardId?: string, players?: Player[]): Promise<void>;
+  setReady(ready: boolean): Promise<void>;
+  switchGame(gameId: string): Promise<void>;
   pushSession(session: GameSession, views?: Record<string, GameSession>): Promise<void>;
   acceptMove(move: import('./types').Move): Promise<void>;
   getSession(): GameSession | null;
@@ -67,6 +69,7 @@ export function createLanClient(): LanClient {
   let es: EventSource | null = null;
   let lastSequence = 0;
   const listeners = new Set<(m: TransportMessage) => void>();
+  const clientToken = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const emit = (m: TransportMessage) => listeners.forEach((fn) => fn(m));
   let sending = Promise.resolve();
   const postMessage = async (message: TransportMessage) => {
@@ -132,7 +135,7 @@ export function createLanClient(): LanClient {
     async createRoom(url: string, gameId: string, player: Player) {
       if (Capacitor.isNativePlatform()) url = (await nativeHostUrl()) ?? url;
       const r = await json<LanRoomInfo>(`${url.replace(/\/$/, '')}/api/rooms`, {
-        method: 'POST', body: JSON.stringify({ gameId, player }),
+        method: 'POST', body: JSON.stringify({ gameId, player, clientToken }),
       });
       base = url.replace(/\/$/, ''); code = r.code; id = r.clientId; host = true; session = r.session;
       await api.connect(base, code, id);
@@ -145,7 +148,7 @@ export function createLanClient(): LanClient {
       if (Capacitor.isNativePlatform()) url = await discoverRoom(wanted);
       if (!url) throw new Error('Enter the host address.');
       const r = await json<LanRoomInfo>(`${url.replace(/\/$/, '')}/api/rooms/${wanted}/join`, {
-        method: 'POST', body: JSON.stringify({ gameId, player }),
+        method: 'POST', body: JSON.stringify({ gameId, player, clientToken }),
       });
       base = url.replace(/\/$/, ''); code = r.code; id = r.clientId; host = false; session = r.session;
       await api.connect(base, code, id);
@@ -159,6 +162,14 @@ export function createLanClient(): LanClient {
 
     async acceptMove(move: import('./types').Move) {
       await postMessage({ type: 'move.accepted', move });
+    },
+
+    async setReady(ready: boolean) {
+      await postMessage({ type: 'ready', ready });
+    },
+
+    async switchGame(gameId: string) {
+      await json(`${base}/api/rooms/${code}/switch-game`, { method: 'POST', body: JSON.stringify({ clientId: id, gameId }) });
     },
 
     async pushSession(s: GameSession, views?: Record<string, GameSession>) {

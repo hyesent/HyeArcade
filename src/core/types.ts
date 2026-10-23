@@ -4,10 +4,25 @@ export type PlayerId = string;
 
 export type PlayerKind = 'human' | 'bot' | 'remote';
 
+export interface PublicPlayerProfile {
+  title: string;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  totalXp: number;
+  bestWinStreak: number;
+  unlockedAchievements: string[];
+}
+
 export interface Player {
   id: PlayerId;
   /** Stable device-local profile identity. LAN uses a separate ephemeral player id. */
   profileId?: string;
+  /** Opt-in lobby-safe stats snapshot shared with LAN opponents. */
+  publicProfile?: PublicPlayerProfile;
+  /** Human readiness for LAN lobby; bots are always ready. */
+  ready?: boolean;
   name: string;
   kind: PlayerKind;
   seat: number;
@@ -133,8 +148,9 @@ export type TransportMessage = (
   | { type: 'move.rejected'; player: PlayerId; message: string }
   | { type: 'chat'; player: PlayerId; text: string; ts: number; presetId?: string }
   | { type: 'emote'; player: PlayerId; emoji: string; ts: number }
+  | { type: 'ready'; ready: boolean }
   | { type: 'join'; player: Player }
-  | { type: 'leave'; player: PlayerId }
+  | { type: 'leave'; player: PlayerId; name?: string }
   | { type: 'host'; player: PlayerId }
   | { type: 'transport.error'; message: string; ts: number }
   | { type: 'resync_request'; afterSequence: number }

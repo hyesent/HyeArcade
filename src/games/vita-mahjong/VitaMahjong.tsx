@@ -6,12 +6,12 @@ import { canMatch, isFree, findMatches, trayHasMatch } from './logic';
 import { tokens } from '../../theme/tokens';
 import { play } from '../../theme/sounds';
 
-const BOARD_W = 860;
-const BOARD_H = 560;
-const TILE_W = 50;
-const TILE_H = 58;
-const X_GAP = 54;
-const Y_GAP = 62;
+const BOARD_W = 820;
+const BOARD_H = 520;
+const TILE_W = 56;
+const TILE_H = 64;
+const X_GAP = 50;
+const Y_GAP = 57;
 
 export function VitaMahjongBoard({ state, onMove, disabled }: { state: VitaMahjongState; onMove: (m: Move<VitaMahjongMove>)=>void; disabled?: boolean }) {
   const [scale, setScale] = useState(1);
@@ -50,7 +50,7 @@ export function VitaMahjongBoard({ state, onMove, disabled }: { state: VitaMahjo
     const update = () => {
       const rect = rootRef.current?.getBoundingClientRect();
       const availableWidth = Math.max(240, (rect?.width ?? window.innerWidth) - 20);
-      const availableHeight = Math.max(220, (rect?.height ?? window.innerHeight) - 190);
+      const availableHeight = Math.max(250, (rect?.height ?? window.innerHeight) - 165);
       setScale(Math.min(1, availableWidth / BOARD_W, availableHeight / BOARD_H));
     };
     update();
@@ -138,7 +138,7 @@ const styles:Record<string,React.CSSProperties>={
  boardViewport:{flex:'1 1 auto',minHeight:0,display:'flex',justifyContent:'center',alignItems:'center',overflow:'hidden'},
  boardScaled:{position:'relative',flex:'0 0 auto'},
  board:{position:'absolute',left:0,top:0,width:BOARD_W,height:BOARD_H,borderRadius:20,background:'radial-gradient(circle,#2e725c,#173e34)',border:'8px solid #9b7544',boxShadow:'inset 0 0 45px rgba(0,0,0,.4)',transformOrigin:'top left'},
- tile:{position:'absolute',width:TILE_W,height:TILE_H,border:'2px solid',borderRadius:7,fontSize:18,fontWeight:800,color:'#201b17',fontFamily:tokens.font.display,cursor:'pointer',transition:'transform 150ms ease,box-shadow 150ms ease'},
+ tile:{position:'absolute',width:TILE_W,height:TILE_H,border:'2px solid',borderRadius:7,fontSize:20,fontWeight:900,color:'#201b17',fontFamily:tokens.font.display,cursor:'pointer',transition:'transform 150ms ease,box-shadow 150ms ease'},
  controls:{display:'flex',justifyContent:'center',gap:6,flexWrap:'wrap',flexShrink:0},
  controlButton:{minHeight:40,padding:'9px 14px',borderRadius:11,border:'1px solid rgba(255,255,255,.16)',background:'linear-gradient(180deg,#253f37,#162b26)',color:'#f5f0df',fontWeight:800,fontSize:12,letterSpacing:.3,boxShadow:'0 3px 10px rgba(0,0,0,.18)'},
 };

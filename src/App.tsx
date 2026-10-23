@@ -50,6 +50,7 @@ export default function App() {
           <Lobby
             game={game}
             onBack={() => setScreen({ name: 'home' })}
+            onSwitchGame={(gameId) => setScreen({ name: 'lobby', gameId })}
             onStart={(players, boardId, lanRoom, lanClient) =>
               setScreen({ name: 'game', gameId: screen.gameId, players, boardId, lanRoom, lanClient })
             }

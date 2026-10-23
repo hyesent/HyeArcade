@@ -165,7 +165,27 @@ export function createLanClient(): LanClient {
     },
 
     async setReady(ready: boolean) {
-      await postMessage({ type: 'ready', ready });
+      // Readiness is a state-changing request: send it directly and wait for
+      // the server acknowledgement instead of relying on the generic fire-and-
+      // forget transport path. This also prevents a missing connection from
+      // silently making the Ready button appear to do nothing.
+      if (!base || !code || !id) throw new Error('Not connected to a LAN room. Rejoin the room and try again.');
+      const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const result = await json<{ ok: boolean; ready: boolean }>(`${base}/api/rooms/${code}/message`, {
+        method: 'POST',
+        body: JSON.stringify({ clientId: id, message: { type: 'ready', ready, requestId } }),
+      });
+      if (typeof result.ready !== 'boolean' || result.ready !== ready) {
+        throw new Error('The room did not confirm your readiness. Please try again.');
+      }
+      // Update this client immediately from the acknowledged value. The SSE
+      // session broadcast will subsequently reconcile every connected client.
+      if (session) {
+        session = { ...session, players: session.players.map(player => player.id === id ? { ...player, ready: result.ready } : player) };
+        emit({ type: 'session', session });
+      }
     },
 
     async switchGame(gameId: string) {
